@@ -135,7 +135,7 @@ timer_interrupt (struct intr_frame *args UNUSED) {
 	thread_awake(ticks);
 	// 현재 틱 값을 인자로 전달하여 sleep_list에 있는 스레드 중 깨울 스레드를 깨움
 
-	if(ticks >= global_ticks){
+	if(ticks >= next_tick_to_awake){
 		thread_awake(ticks);
 	}
 }
