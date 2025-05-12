@@ -111,6 +111,7 @@ struct thread {
 };
 
 extern int64_t next_tick_to_awake;
+bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
 
 
 /* If false (default), use round-robin scheduler.
