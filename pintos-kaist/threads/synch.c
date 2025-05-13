@@ -305,9 +305,9 @@ static bool cmp_sema_priority(const struct list_elem *a, const struct list_elem 
   struct semaphore_elem *sema_a = list_entry(a, struct semaphore_elem, elem); 
   struct semaphore_elem *sema_b = list_entry(b, struct semaphore_elem, elem);
 
-  // 💡 리스트가 비어 있으면 우선순위를 가장 낮게 취급
-  if (list_empty(&sema_a->semaphore.waiters)) return false;
-  if (list_empty(&sema_b->semaphore.waiters)) return true;
+  // 리스트가 비어 있으면 우선순위를 가장 낮게 취급
+   if (list_empty(&sema_a->semaphore.waiters)) return false;
+   if (list_empty(&sema_b->semaphore.waiters)) return true;
 
   struct thread *thread_a = list_entry(list_front(&sema_a->semaphore.waiters), struct thread, elem);
   struct thread *thread_b = list_entry(list_front(&sema_b->semaphore.waiters), struct thread, elem);
