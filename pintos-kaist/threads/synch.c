@@ -108,13 +108,22 @@ sema_up (struct semaphore *sema) {
 	enum intr_level old_level;
 
 	ASSERT (sema != NULL);
-	list_sort(&sema->waiters, cmp_priority, NULL);
+	
 	old_level = intr_disable ();
-	if (!list_empty (&sema->waiters))
-		thread_unblock (list_entry (list_pop_front (&sema->waiters),
-					struct thread, elem));
+	if (!list_empty (&sema->waiters)){
+		//waiters를 정렬해서 가장 높은 priority 스레드가 앞
+		list_sort(&sema->waiters, cmp_priority, NULL);
+		// thread_unblock (list_entry (list_pop_front (&sema->waiters),
+		// 			struct thread, elem));
+		struct thread *t = list_entry(list_pop_front(&sema->waiters), struct thread, elem);
+    	//스레드를 READY 상태로 바꿈
+		thread_unblock(t);
+	}
+		
 	sema->value++;
 	intr_set_level (old_level);
+	//방금 깨어난 스레드가 현재 스레드보다 priority 높으면 양보해야댐
+	thread_yield();
 }
 
 static void sema_test_helper (void *sema_);
@@ -303,8 +312,9 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED) {
 	ASSERT (lock != NULL);
 	ASSERT (!intr_context ());
 	ASSERT (lock_held_by_current_thread (lock));
-	list_sort(&cond->waiters, cmp_priority, NULL);
+	
 	if (!list_empty (&cond->waiters))
+		list_sort(&cond->waiters, cmp_priority, NULL);
 		sema_up (&list_entry (list_pop_front (&cond->waiters),
 					struct semaphore_elem, elem)->semaphore);
 }
