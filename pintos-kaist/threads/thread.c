@@ -342,6 +342,14 @@ bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *au
 	return t_a->priority > t_b->priority;
 }
 
+/* Donation 리스트 정렬에 사용: priority 큰 순서대로 */
+bool
+thread_donation_cmp(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
+    struct thread *t_a = list_entry(a, struct thread, d_elem);
+    struct thread *t_b = list_entry(b, struct thread, d_elem);
+    return t_a->priority > t_b->priority;
+}
+
 //현재 스레드를 지정된 ticks (깨어나야 할 절대 시간)까지 재움
 void
 thread_sleep(int64_t ticks){
@@ -397,8 +405,9 @@ thread_set_priority (int new_priority) {
 	//thread_current ()->priority = new_priority;
 	struct thread *cur = thread_current();
 
-	cur->priority = new_priority;
-	list_sort(&ready_list, cmp_priority, NULL);
+	//cur->priority = new_priority;
+	cur->original_priority = new_priority;
+	refresh_priority(); //donation을 고려한 priority 재계산
 	//만약 priority가 낮아졌고, ready에 높은애 있으면 yield
 
 	if(!list_empty(&ready_list)){
@@ -410,6 +419,64 @@ thread_set_priority (int new_priority) {
 	
 }
 
+// 스레드가 어떤 락을 기다릴 때 호출, 락의 소유자에게 priority를 기부
+void
+donate_priority(void) {
+	struct thread *cur = thread_current();
+	int depth = 0; //재귀 깊이
+	struct lock *lock = cur->wait_on_lock;
+
+	while (lock && depth < 8) // 재귀 8번까지 무한루프 방지
+	{
+		// 락을 보유한 스레드 없으면 종료
+		if(lock->holder == NULL) break;
+
+		// 기부 필요한 경우 -> holder의 priority 올려줌
+		if(lock->holder->priority < cur->priority){
+			lock->holder->priority = cur->priority;
+		}
+
+		// 지금 lock holder이 기다리는 락이 있나?
+		cur = lock->holder;
+		lock = cur->wait_on_lock;
+		depth++;
+	}
+	
+}
+
+// 지금 lock로 받은 donation 항목만 제거
+void
+remove_with_lock(struct lock *lock){
+	struct thread *cur = thread_current();
+	struct list_elem *e = list_begin(&cur->donation);
+
+	while (e != list_end(&cur->donation))
+	{
+		struct thread *donor = list_entry(e, struct thread, d_elem);
+		if(donor->wait_on_lock == lock){
+			//이 donation은 이 락이 원인 제공 했으니 제거
+			e = list_remove(e);
+		} else {
+			e = list_next(e);
+		}
+	}	
+}
+
+// 제거 후 남아있는 donation 중 가장 높은 우선순위로 정렬, 없으면 원래 priority
+void
+refresh_priority(void){
+	struct thread *cur = thread_current();
+	cur->priority = cur->original_priority;
+
+	if(!list_empty(&cur->donation)){
+		list_sort(&cur->donation, thread_donation_cmp, NULL);
+		struct thread *top = list_entry(list_front(&cur->donation), struct thread, d_elem);
+		
+		if(top->priority > cur->priority){
+			cur->priority = top->priority;
+		}
+	}
+}
 //현재 스레드의 우선순위를 반환
 /* Returns the current thread's priority. */
 int
@@ -508,6 +575,9 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *);
 	t->priority = priority;
 	t->magic = THREAD_MAGIC;
+	t->original_priority = priority;
+	t->wait_on_lock = NULL;
+	list_init(&t->donation);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
