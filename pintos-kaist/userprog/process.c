@@ -22,6 +22,9 @@
 #include "vm/vm.h"
 #endif
 
+// ELF 바이너리(=ELF 실행파일)들을 로드하고 프로세스를 실행
+//ELF: ELF는 많은 운영체제에서 목적 파일, 공유 라이브러리, 그리고 실행 파일들을 위해 사용되는 파일 포맷
+
 static void process_cleanup (void);
 static bool load (const char *file_name, struct intr_frame *if_);
 static void initd (void *f_name);

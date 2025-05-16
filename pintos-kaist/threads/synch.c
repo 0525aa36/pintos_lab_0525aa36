@@ -316,7 +316,7 @@ cond_wait (struct condition *cond, struct lock *lock) {
 	list_insert_ordered(&cond->waiters, &waiter.elem, cmp_sema_priority, NULL);
 
    // lock을 잠깐 놓고 기다렸다가, 다시 얻는다
-	lock_release (lock);
+	lock_release (lock);   
 	sema_down (&waiter.semaphore);
 	lock_acquire (lock);
 }
