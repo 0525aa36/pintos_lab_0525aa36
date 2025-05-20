@@ -330,10 +330,12 @@ thread_yield (void) {
 
 // list_elem a에 해당하는 스레드의 wakeup_tick이 b에 해당하는 스레드의 wakeup_tick보다 작으면 true 반환
 bool cmp_wakeup_tick(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED){
-	return list_entry(a, struct thread, elem)-> wakeup_tick < list_entry(b, struct thread, elem)->wakeup_tick;
+	return list_entry(a, struct thread, elem)-> wakeup_tick < 
+	list_entry(b, struct thread, elem)->wakeup_tick;
 }
 
-//ready_list를 정렬하기 위한 비교 함수 / priority가 높은 스레드가 리스트의 앞쪽에 오도록
+// cmp_priority(): ready_list 또는 donation 리스트 정렬용
+// priority 높은 thread가 앞에 오도록
 bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED){
 	struct thread *t_a = list_entry(a, struct thread, elem);
 	struct thread *t_b = list_entry(b, struct thread, elem);
@@ -395,6 +397,7 @@ thread_awake(int64_t current_tick){
 	}
 }
 
+
 void thread_preemption(void)
 {
   struct thread *now_running = thread_current();
@@ -418,11 +421,13 @@ thread_set_priority (int new_priority) {
 	refresh_priority(); //donation을 고려한 priority 재계산
 	//만약 priority가 낮아졌고, ready에 높은애 있으면 yield
 
+
 	thread_preemption();
 	
 }
 
-// 스레드가 어떤 락을 기다릴 때 호출, 락의 소유자에게 priority를 기부
+// 현재 스레드가 wait_on_lock을 따라 올라가며
+// 자신의 priority를 잠금 보유자에게 전달함 (최대 8단계 중첩 지원)
 void
 donate_priority(void) {
 	struct thread *cur = thread_current();
@@ -447,7 +452,8 @@ donate_priority(void) {
 	
 }
 
-// 지금 lock로 받은 donation 항목만 제거
+// 특정 lock에 의해 받은 donation 항목 제거
+// (donation은 특정 lock 기다리는 동안만 유효)
 void
 remove_with_lock(struct lock *lock){
 	struct thread *cur = thread_current();
@@ -465,7 +471,10 @@ remove_with_lock(struct lock *lock){
 	}	
 }
 
-// 제거 후 남아있는 donation 중 가장 높은 우선순위로 정렬, 없으면 원래 priority
+
+// 현재 스레드의 priority를 다시 계산함
+// - original_priority로 초기화한 후
+// - 남아있는 donation 리스트에서 가장 높은 priority 유지
 void
 refresh_priority(void){
 	struct thread *cur = thread_current();
@@ -480,6 +489,7 @@ refresh_priority(void){
 		}
 	}
 }
+
 //현재 스레드의 우선순위를 반환
 /* Returns the current thread's priority. */
 int
@@ -733,7 +743,7 @@ schedule (void) {
 		/* If the thread we switched from is dying, destroy its struct
 		   thread. This must happen late so that thread_exit() doesn't
 		   pull out the rug under itself.
-		   We just queuing the page free reqeust here because the page is
+		   We just queuing the page free reqeust here because the page is  
 		   currently used by the stack.
 		   The real destruction logic will be called at the beginning of the
 		   schedule(). */
