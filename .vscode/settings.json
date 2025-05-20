@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "synch.h": "c",
-        "mmu.h": "c"
+        "gdt.h": "c",
+        "system_error": "c"
     }
 }

@@ -8,13 +8,15 @@
 #include "threads/flags.h"
 #include "intrinsic.h"
 
-// 유저 프로세스가 일부 커널 기능에 접근하려고 할때마다 시스템 콜이 호출된다.
-// 이게 시스템 콜 핸들러의 기본 구조
-// 현재 상태에서는 이때 단지 메세지를 출력하고 유저 프로세스를 종료시키게 되어있다. 
-// 시스템 콜이 필요로 하는 다른 일을 수행하는 코드를 수행
+
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
+
+// syscall_handler 위에 함수 프로토타입 선언 추가
+static void halt(void);
+static int write(int fd, const void *buffer, unsigned size);
+static void exit(int status);
 
 /* System call.
  *
@@ -40,12 +42,52 @@ syscall_init (void) {
 	 * mode stack. Therefore, we masked the FLAG_FL. */
 	write_msr(MSR_SYSCALL_MASK,
 			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
+	
 }
 
 /* The main system call interface */
 void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
-	printf ("system call!\n");
-	thread_exit ();
+	switch (f->R.rax) {
+        case SYS_HALT:
+            halt();
+            break;
+        case SYS_EXIT:
+            exit((int)f->R.rdi);
+            break;
+        case SYS_WRITE:
+            f->R.rax = write((int)f->R.rdi, (const void *)f->R.rsi, (unsigned)f->R.rdx);
+            break;
+        case SYS_EXEC:
+            break;
+        case SYS_WAIT:
+            break;
+        default:
+            thread_exit(); // 알 수 없는 시스템콜은 종료
+    }
+	// printf ("system call!\n");
+	// thread_exit ();
+}
+
+static void
+halt(void) {
+    power_off(); // 시스템 종료
+}
+
+static void
+exit(int status) {
+    struct thread *cur = thread_current();
+    
+    printf("%s: exit(%d)\n", cur->name, status);
+    thread_exit();
+}
+
+static int
+write(int fd, const void *buffer, unsigned size) {
+    if (fd == 1) { // STDOUT
+        putbuf(buffer, size);
+        return size;
+    }
+    return -1;
 }

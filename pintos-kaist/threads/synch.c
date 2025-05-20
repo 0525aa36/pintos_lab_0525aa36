@@ -127,9 +127,12 @@ sema_up (struct semaphore *sema) {
 	}
 		
 	sema->value++;
+   thread_preemption();
 	intr_set_level (old_level);
-	// 더 높은 priority 스레드가 깨어났다면 CPU 양보(yield)
-	thread_yield();
+  
+	//방금 깨어난 스레드가 현재 스레드보다 priority 높으면 양보해야댐
+	
+   // thread_yield();
 }
 
 static void sema_test_helper (void *sema_);

@@ -29,6 +29,7 @@ static void process_cleanup (void);
 static bool load (const char *file_name, struct intr_frame *if_);
 static void initd (void *f_name);
 static void __do_fork (void *);
+static void argument_stack (char **parse, int count, void **esp);
 
 /* General process initializer for initd and other process. */
 static void
@@ -45,16 +46,17 @@ tid_t
 process_create_initd (const char *file_name) {
 	char *fn_copy;
 	tid_t tid;
-
+	
 	/* Make a copy of FILE_NAME.
 	 * Otherwise there's a race between the caller and load(). */
 	fn_copy = palloc_get_page (0);
 	if (fn_copy == NULL)
 		return TID_ERROR;
 	strlcpy (fn_copy, file_name, PGSIZE);
-
+	char *save_ptr;
+	char *token = strtok_r(file_name, " ", &save_ptr);
 	/* Create a new thread to execute FILE_NAME. */
-	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
+	tid = thread_create (token, PRI_DEFAULT, initd, fn_copy);
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
 	return tid;
@@ -165,7 +167,7 @@ error:
  * Returns -1 on fail. */
 int
 process_exec (void *f_name) {
-	char *file_name = f_name;
+	char *cmd_line = f_name; // Renamed for clarity from file_name
 	bool success;
 
 	/* We cannot use the intr_frame in the thread structure.
@@ -176,22 +178,94 @@ process_exec (void *f_name) {
 	_if.cs = SEL_UCSEG;
 	_if.eflags = FLAG_IF | FLAG_MBS;
 
+	// Argument parsing moved here from load()
+	char *cmd_line_copy = palloc_get_page(0);
+	if (cmd_line_copy == NULL) {
+		return -1; // Cannot allocate memory for parsing
+	}
+	strlcpy(cmd_line_copy, cmd_line, PGSIZE);
+
+	char *token, *save_ptr;
+	int argc = 0;
+	char *argv[128]; // Max 128 arguments
+
+	token = strtok_r(cmd_line_copy, " ", &save_ptr);
+	if (token == NULL) { // Empty command line
+		palloc_free_page(cmd_line_copy);
+		return -1; // Error: empty command
+	}
+	char *prog_name = token; // First token is the program name
+
+	argv[argc++] = prog_name;
+	while ((token = strtok_r(NULL, " ", &save_ptr)) != NULL) {
+		if (argc < 128) { // Ensure not to overflow argv
+			argv[argc++] = token;
+		} else {
+			// Too many arguments, stop parsing.
+			// The first 128 arguments will be passed.
+			break;
+		}
+	}
 	/* We first kill the current context */
 	process_cleanup ();
 
 	/* And then load the binary */
-	success = load (file_name, &_if);
+	success = load (prog_name, &_if); // Pass only the program name to load
+
+	// ...existing code...
+    /* Setup stack with parsed arguments */
+   if (success) {
+        argument_stack(argv, argc, (void **)&_if.rsp); // _if.rsp가 argument_stack에 의해 업데이트됨
+        
+        // main 함수를 위해 argc와 argv를 레지스터에 설정
+        _if.R.rdi = argc;          // argc를 %rdi에 설정
+        _if.R.rsi = *(char ***)(_if.rsp + sizeof(void*) + sizeof(int)); // 스택에서 argv 주소를 읽어 %rsi에 설정
+                                                                    // (_if.rsp는 가짜 반환 주소를 가리키므로,
+                                                                    //  가짜 반환 주소와 argc를 건너뛰어야 argv 주소에 도달)
+
+        // --- 추가된 printf 문 시작 ---
+        // printf("---- Debug process_exec ----\n");
+        // printf("_if.R.rdi (argc) = %d\n", (int)_if.R.rdi);
+        // printf("_if.R.rsi (argv) = %p\n", (void *)_if.R.rsi);
+
+        if (_if.R.rsi != NULL) {
+            char **user_argv = (char **)_if.R.rsi;
+            for (int i = 0; i < _if.R.rdi; i++) {
+                // 사용자 공간 포인터이므로 직접 접근은 위험할 수 있으나,
+                // 디버깅 목적으로 Pintos 커널 내에서 시도해볼 수 있습니다.
+                // 실제 사용자 프로그램에서는 이 주소가 유효해야 합니다.
+                // 여기서는 argv[i]가 가리키는 문자열의 주소와, 가능하다면 문자열 자체를 출력합니다.
+                // 주의: user_argv[i]가 유효한 사용자 주소가 아니면 여기서 폴트가 발생할 수 있습니다.
+                //       안전하게 하려면 커널에서 사용자 메모리를 읽는 함수를 사용해야 하지만,
+                //       간단한 디버깅을 위해 직접 접근을 시도합니다.
+                // printf("argv[%d] (address from _if.R.rsi): %p\n", i, (void *)user_argv[i]);
+                // 만약 user_argv[i]가 커널에서 직접 접근 가능한 주소라면 (예: 물리적으로 매핑된 경우)
+                // 또는 GDB로 이 값을 확인하는 것이 더 안전합니다.
+                // printf("argv[%d] string: %s\n", i, user_argv[i]); // 이 줄은 폴트 가능성 있음
+            }
+        }
+        
+
+        /* For debugging: print stack contents */
+        // hex_dump((uintptr_t)_if.rsp, _if.rsp, (uint8_t *)USER_STACK - (uint8_t *)_if.rsp, true);
+    }
+
+    /* Free the copy of the command line used for parsing */
+// ...existing code...
+	/* Free the copy of the command line used for parsing */
+	palloc_free_page (cmd_line_copy);
 
 	/* If load failed, quit. */
-	palloc_free_page (file_name);
-	if (!success)
+	/* The original cmd_line (f_name) is freed by process_exec ONLY if load fails. */
+	if (!success) {
+		palloc_free_page (cmd_line); 
 		return -1;
+	}
 
 	/* Start switched process. */
 	do_iret (&_if);
 	NOT_REACHED ();
 }
-
 
 /* Waits for thread TID to die and returns its exit status.  If
  * it was terminated by the kernel (i.e. killed due to an
@@ -207,6 +281,7 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
+	for(int i = 0; i<400000000; i++){}	
 	return -1;
 }
 
@@ -324,7 +399,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
  * and its initial stack pointer into *RSP.
  * Returns true if successful, false otherwise. */
 static bool
-load (const char *file_name, struct intr_frame *if_) {
+load (const char *file_name, struct intr_frame *if_) { // file_name is now just the program name
 	struct thread *t = thread_current ();
 	struct ELF ehdr;
 	struct file *file = NULL;
@@ -339,7 +414,7 @@ load (const char *file_name, struct intr_frame *if_) {
 	process_activate (thread_current ());
 
 	/* Open executable file. */
-	file = filesys_open (file_name);
+	file = filesys_open (file_name); // Use the passed file_name directly
 	if (file == NULL) {
 		printf ("load: %s: open failed\n", file_name);
 		goto done;
@@ -417,9 +492,6 @@ load (const char *file_name, struct intr_frame *if_) {
 	/* Start address. */
 	if_->rip = ehdr.e_entry;
 
-	/* TODO: Your code goes here.
-	 * TODO: Implement argument passing (see project2/argument_passing.html). */
-
 	success = true;
 
 done:
@@ -427,7 +499,6 @@ done:
 	file_close (file);
 	return success;
 }
-
 
 /* Checks whether PHDR describes a valid, loadable segment in
  * FILE and returns true if so, false otherwise. */
@@ -546,10 +617,11 @@ setup_stack (struct intr_frame *if_) {
 	kpage = palloc_get_page (PAL_USER | PAL_ZERO);
 	if (kpage != NULL) {
 		success = install_page (((uint8_t *) USER_STACK) - PGSIZE, kpage, true);
-		if (success)
+		if (success) {
 			if_->rsp = USER_STACK;
-		else
+		} else {
 			palloc_free_page (kpage);
+		}
 	}
 	return success;
 }
@@ -640,3 +712,49 @@ setup_stack (struct intr_frame *if_) {
 	return success;
 }
 #endif /* VM */
+
+/* Puts the arguments on the stack. */
+static void
+argument_stack (char **parse, int count, void **esp) {
+  // 주소를 저장할 배열
+  void *argv_address[count];
+  
+  // 스택 포인터가 이미 USER_STACK에 설정되어 있다고 가정
+  // 문자열 역순으로 저장 (마지막 인수부터 시작)
+  for (int i = count - 1; i >= 0; i--) {
+    size_t len = strlen(parse[i]) + 1; // null 문자 포함
+    *esp -= len;
+    memcpy(*esp, parse[i], len);
+    argv_address[i] = *esp;
+  }
+
+  // 8바이트 정렬을 맞추기 위한 패딩 추가
+  // 현재 스택 포인터를 8로 나누어 떨어지게 맞춤
+  *esp = (void*)((uintptr_t)(*esp) & ~7UL);
+  
+  // argv[argc] = NULL 포인터 추가
+  *esp -= sizeof(char*);
+  *(char**)(*esp) = NULL;
+  
+  // 각 인수에 대한 포인터 저장 (역순)
+  for (int i = count - 1; i >= 0; i--) {
+    *esp -= sizeof(char*);
+    *(char**)(*esp) = argv_address[i];
+  }
+  
+  // argv 포인터 저장 (즉, argv[0]의 주소)
+  void* argv_ptr = *esp;
+  *esp -= sizeof(char**);
+  *(char***)(*esp) = argv_ptr;
+  
+  // argc 저장
+  *esp -= sizeof(int);
+  *(int*)(*esp) = count;
+  
+  // 가짜 반환 주소 저장 
+  *esp -= sizeof(void*);
+  *(void**)(*esp) = NULL;
+  
+  // 디버깅을 위한 스택 범위 확인
+  ASSERT((uintptr_t)*esp >= (uintptr_t)(((uint8_t *)USER_STACK) - PGSIZE)); 
+}

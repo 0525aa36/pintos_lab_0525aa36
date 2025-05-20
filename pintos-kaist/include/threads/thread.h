@@ -100,9 +100,11 @@ struct thread {
 	struct list donation;				/* donation list */
 	struct list_elem d_elem;			/* donation 리스트에 쓰이는 요소 */
 
+	
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
-	uint64_t *pml4;                     /* Page map level 4 */
+	uint64_t *pml4;  
+	
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
@@ -155,4 +157,5 @@ int thread_get_load_avg (void);
 
 void do_iret (struct intr_frame *tf);
 
+void thread_preemption(void);
 #endif /* threads/thread.h */

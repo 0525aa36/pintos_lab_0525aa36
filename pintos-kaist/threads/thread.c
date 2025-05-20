@@ -219,9 +219,7 @@ thread_create (const char *name, int priority,
 
 	/* Add to run queue. */
 	thread_unblock (t);
-	if (t->priority > thread_current()->priority){
-		thread_yield();
-	}
+	thread_preemption();
 		
 
 	return tid;
@@ -400,9 +398,18 @@ thread_awake(int64_t current_tick){
 }
 
 
-// thread_set_priority(): 현재 스레드의 원래 priority를 변경하고
-// donation을 고려한 현재 priority 재계산 + 필요 시 (CPU 양보)yield
-
+void thread_preemption(void)
+{
+  struct thread *now_running = thread_current();
+  struct list_elem *e = list_begin(&ready_list); // 여기서 list_front 쓰면 리스트 비어있을 때 못 얻어 오는 경우 생겨서 fail
+  struct thread *ready_head = list_entry(e, struct thread, elem);
+  if (!list_empty(&ready_list) && (thread_current() != idle_thread) && (now_running->priority < ready_head->priority))
+  {
+    thread_yield();
+  }
+}
+//현재 스레드의 우선순위를 new_priority로 설정
+//우선순위가 낮아진 경우, 준비 큐에 더 높은 우선순위의 스레드가 있다면 CPU를 양보
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) {
@@ -414,12 +421,9 @@ thread_set_priority (int new_priority) {
 	refresh_priority(); //donation을 고려한 priority 재계산
 	//만약 priority가 낮아졌고, ready에 높은애 있으면 yield
 
-	if(!list_empty(&ready_list)){
-		struct thread *top = list_entry(list_front(&ready_list), struct thread, elem);
-		if(top->priority > cur->priority){
-			thread_yield(); 
-		}
-	}
+
+	thread_preemption();
+	
 }
 
 // 현재 스레드가 wait_on_lock을 따라 올라가며
@@ -739,7 +743,7 @@ schedule (void) {
 		/* If the thread we switched from is dying, destroy its struct
 		   thread. This must happen late so that thread_exit() doesn't
 		   pull out the rug under itself.
-		   We just queuing the page free reqeust here because the page is
+		   We just queuing the page free reqeust here because the page is  
 		   currently used by the stack.
 		   The real destruction logic will be called at the beginning of the
 		   schedule(). */
