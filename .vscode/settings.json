@@ -2,6 +2,15 @@
     "files.associations": {
         "synch.h": "c",
         "gdt.h": "c",
-        "system_error": "c"
+        "system_error": "c",
+        "syscall.h": "c",
+        "syscall-nr.h": "c",
+        "stdint.h": "c",
+        "stdio.h": "c",
+        "stdbool.h": "c",
+        "thread.h": "c",
+        "process.h": "c",
+        "file.h": "c",
+        "filesys.h": "c"
     }
 }
