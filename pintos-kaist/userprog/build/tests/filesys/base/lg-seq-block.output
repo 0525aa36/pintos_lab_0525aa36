@@ -1,4 +1,4 @@
-Kernel command line: -q -f put lg-full run lg-full
+Kernel command line: -q -f put lg-seq-block run lg-seq-block
 0 ~ 9fc00 1
 100000 ~ 13e0000 1
 Pintos booting with: 
@@ -10,17 +10,17 @@ hd0:1: detected 20,160 sector (9 MB) disk, model "QEMU HARDDISK", serial "QM0000
 hd1:0: detected 107 sector (53 kB) disk, model "QEMU HARDDISK", serial "QM00003"
 Formatting file system...done.
 Boot complete.
-Putting 'lg-full' into the file system...
-Executing 'lg-full':
-(lg-full) begin
-(lg-full) create "quux"
-Execution of 'lg-full' complete.
-Timer: 585 ticks
-Thread: 34 idle ticks, 550 kernel ticks, 1 user ticks
+Putting 'lg-seq-block' into the file system...
+Executing 'lg-seq-block':
+(lg-seq-block) begin
+(lg-seq-block) create "noodle"
+Execution of 'lg-seq-block' complete.
+Timer: 583 ticks
+Thread: 33 idle ticks, 549 kernel ticks, 2 user ticks
 hd0:0: 0 reads, 0 writes
-hd0:1: 84 reads, 320 writes
+hd0:1: 84 reads, 321 writes
 hd1:0: 107 reads, 0 writes
-Console: 819 characters output
+Console: 856 characters output
 Keyboard: 0 keys pressed
 Exception: 0 page faults
 Powering off...
