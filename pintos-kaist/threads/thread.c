@@ -216,7 +216,11 @@ thread_create (const char *name, int priority,
 	t->tf.ss = SEL_KDSEG;
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
-
+	/* FDT 초기화 */
+	t->fdt = palloc_get_page(PAL_ZERO); // file * 64개
+	t->fd_idx = 2; // 0과 1은 stdin, stdout 예약
+	t->fdt[0] = NULL;
+	t->fdt[1] = NULL;
 	/* Add to run queue. */
 	thread_unblock (t);
 	thread_preemption();
