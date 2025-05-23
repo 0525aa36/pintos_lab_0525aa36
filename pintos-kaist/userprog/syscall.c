@@ -76,8 +76,11 @@ syscall_handler (struct intr_frame *f UNUSED) {
             f->R.rax = write((int)f->R.rdi, (const void *)f->R.rsi, (unsigned)f->R.rdx);
             break;
         case SYS_EXEC:
+            check_address((void *)f->R.rdi);
+            f->R.rax = process_exec((void *)f->R.rdi);
             break;
         case SYS_WAIT:
+            f->R.rax = process_wait((tid_t)f->R.rdi);
             break;
         case SYS_CREATE:
             f->R.rax = create((const char *)f->R.rdi, (unsigned)f->R.rsi);
@@ -100,6 +103,10 @@ syscall_handler (struct intr_frame *f UNUSED) {
         case SYS_TELL:
             f->R.rax = tell((int)f->R.rdi);
             break;
+        case SYS_FORK:
+            check_address((void *)f->R.rdi);  // 자식 이름 주소 검증
+            f->R.rax = process_fork((const char *)f->R.rdi, f);  // syscall frame 전달
+            break;    
         default:
             exit(-1); // 알 수 없는 시스템콜은 종료
     }
@@ -116,7 +123,13 @@ static void
 exit(int status) {
     struct thread *cur = thread_current();
     
+    // 🔹 종료 메시지 출력
     printf("%s: exit(%d)\n", cur->name, status);
+
+    // 🔹 부모에게 전달할 종료 코드 저장
+    cur->exit_status = status;
+
+    // 🔹 프로세스 종료
     thread_exit();
 }
 
@@ -257,7 +270,7 @@ remove(const char *file) {
     return success;
 }
 
-/* 유효 주소 체그 함수*/
+/* 유효 주소 체크 함수*/
 static void
 check_address(const void *addr) {
     if (addr == NULL || !is_user_vaddr(addr) ||

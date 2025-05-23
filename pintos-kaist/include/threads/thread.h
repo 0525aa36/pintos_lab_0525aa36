@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/interrupt.h"
+#include "threads/synch.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -110,6 +111,12 @@ struct thread {
 
 	struct file *running_file;         /* 현재 실행 중인 실행 파일 */
 	int exit_status;                   /* 종료 상태 코드 */
+	struct intr_frame parent_if;
+	struct semaphore wait_sema;  		/* 부모가 나를 기다릴 때 사용하는 세마포어 */
+	struct thread *parent;   // 부모 스레드 포인터
+	struct list children;       /* 자식 리스트 (내가 부모일 때) */
+ 	struct list_elem child_elem; /* 내가 자식일 때 리스트에 들어가는 요소 */
+	struct semaphore fork_sema;
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
