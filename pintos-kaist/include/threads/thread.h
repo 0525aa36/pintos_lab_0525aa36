@@ -117,6 +117,8 @@ struct thread {
 	struct list children;       /* 자식 리스트 (내가 부모일 때) */
  	struct list_elem child_elem; /* 내가 자식일 때 리스트에 들어가는 요소 */
 	struct semaphore fork_sema;
+	bool fork_success;
+	bool waited;  // 이 자식이 이미 wait 되었는지 여부
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */

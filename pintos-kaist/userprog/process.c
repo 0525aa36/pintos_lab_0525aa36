@@ -75,23 +75,24 @@ initd (void *f_name) {
 
 /* Clones the current process as `name`. Returns the new process's thread id, or
  * TID_ERROR if the thread cannot be created. */
-tid_t process_fork(const char *name, struct intr_frame *if_) {
-    struct thread *cur = thread_current();
-    memcpy(&cur->parent_if, if_, sizeof(struct intr_frame)); // 부모의 레지스터 저장
+ tid_t
+ process_fork (const char *name, struct intr_frame *if_) {
+    struct thread *cur = thread_current ();
+    memcpy(&cur->parent_if, if_, sizeof(struct intr_frame));
 
-	tid_t tid = thread_create(name, PRI_DEFAULT, __do_fork, cur);
-	if (tid == TID_ERROR)
+    tid_t tid = thread_create(name, PRI_DEFAULT, __do_fork, cur);
+    if (tid == TID_ERROR)
+    	return TID_ERROR;
+
+    struct thread *child = get_child_by_tid(tid);
+    child->parent = cur;
+     
+    /* 자식 준비 신호 대기 */
+    sema_down(&child->fork_sema);
+	
+	if(!child->fork_success)
 		return TID_ERROR;
 
-	// 자식 쓰레드가 준비될 때까지 부모는 대기
-	struct thread *child = get_child_by_tid(tid);
-	if (child != NULL) {
-		child->parent = cur;
-
-		// 🔥 자식이 준비될 때까지 대기!
-		sema_down(&child->fork_sema);
-	}
-	
 	return tid;
 }
 
@@ -150,13 +151,11 @@ __do_fork (void *aux) {
 	struct thread *parent = (struct thread *) aux;
 	struct thread *current = thread_current ();
 	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
-	// struct intr_frame *parent_if;
-	// bool succ = true;
-	sema_init(&current->fork_sema, 0);  // 부모가 기다릴 수 있도록 초기값 0으로 설정 (fork 동기화용)
-	//자식 스레드의 wait_sema 초기화 (0)
-	sema_init(&current->wait_sema, 0);	// wait() 동기화용
-	/* 1. Read the cpu context to local stack. */
-	memcpy(&if_, &parent->parent_if, sizeof(struct intr_frame));  // context 복사
+	/* 0. 세마포어 초기화 (여기서 해도 되고, thread_init 에서 해도 됨) */
+     sema_init(&current->fork_sema, 0);
+     sema_init(&current->wait_sema, 0);
+	 /* 1. 부모 컨텍스트 복사 */
+     memcpy(&if_, &parent->parent_if, sizeof(struct intr_frame));
 
 	/* 2. Duplicate page table */
 	current->pml4 = pml4_create();
@@ -186,18 +185,22 @@ __do_fork (void *aux) {
 	current->fdt = palloc_get_page(PAL_ZERO);
 	if(current->fdt == NULL) goto error;
 
-	for (int i = 0; i < FDCOUNT_LIMIT; i++) {
-        if (parent->fdt[i]) {
-            current->fdt[i] = file_duplicate(parent->fdt[i]);
-        }
-    }
-    current->fd_idx = parent->fd_idx;
+	for (int i = 0; i < FDCOUNT_LIMIT; i++)
+         if (parent->fdt[i])
+             current->fdt[i] = file_duplicate(parent->fdt[i]);
+     current->fd_idx = parent->fd_idx;
 
+	list_push_back(&parent->children, &current->child_elem);
+
+	// 부모 깨움 (fork 완료 알림)
+	current->fork_success = true;
 	sema_up(&current->fork_sema);
     // 🔹 자식 프로세스 준비 완료 → do_iret로 유저모드 복귀
     do_iret(&if_);
 
 error:
+	current->fork_success = false;
+	sema_up(&current->fork_sema);
     thread_exit();
 }
 
@@ -319,8 +322,42 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
+	/*
+	자식 목록에서 child_tid를 가진 thread 찾기
+
+	이미 wait 한 자식이면 -1 리턴
+
+	자식이 종료될 때까지 wait_sema로 기다리기
+
+	자식의 exit_status 반환
+
+	자식 리스트에서 제거
+	*/
 	for(int i = 0; i<2000000000; i++){}	
 	return -1;
+	// struct thread *cur = thread_current();
+    // struct thread *child = get_child_by_tid(child_tid);
+
+    // // (1) 존재하지 않거나, 자식이 아닌 경우
+    // if (child == NULL || child->parent != cur)
+    //     return -1;
+
+    // // (2) 이미 기다렸던 자식인지 검사 (한 번만 기다릴 수 있음)
+    // if (child->waited)
+    //     return -1;
+    // child->waited = true;
+
+    // // (3) 자식이 종료될 때까지 기다림
+    // sema_down(&child->wait_sema);
+
+    // // (4) 자식의 종료 상태 얻기
+    // int status = child->exit_status;
+
+    // // (5) 자식 리스트에서 제거 (좀비 청소)
+    // list_remove(&child->child_elem);
+
+    // // (6) 자식 구조체는 thread_exit() 내부에서 free 될 것
+    // return status;
 }
 
 /* Exit the process. This function is called by thread_exit (). */
@@ -802,13 +839,13 @@ argument_stack (char **parse, int count, void **esp) {
 
 struct thread *get_child_by_tid(tid_t child_tid) {
     struct thread *cur = thread_current();
-
     struct list_elem *e;
+
     for (e = list_begin(&cur->children); e != list_end(&cur->children); e = list_next(e)) {
-        struct thread *child = list_entry(e, struct thread, child_elem);
-        if (child->tid == child_tid) {
-            return child;
-        }
+        struct thread *t = list_entry(e, struct thread, child_elem);
+        if (t->tid == child_tid)
+            return t;
     }
     return NULL;
 }
+
