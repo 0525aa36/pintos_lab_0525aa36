@@ -11,6 +11,9 @@
 #include "userprog/process.h"
 #include "filesys/filesys.h"
 #include "threads/synch.h"
+#include "threads/palloc.h"
+
+typedef int pid_t; // #include "lib/user/syscall.h" -> type conflict 발생으로 인한 재정의
 
 
 void syscall_entry (void);
@@ -31,6 +34,10 @@ static unsigned tell(int fd);
 static void seek(int fd, unsigned position);
 static void check_address(const void *addr);
 struct lock filesys_lock;
+pid_t fork (const char *thread_name, struct intr_frame *f);
+int exec (const char *file);
+
+
 /* System call.
  *
  * Previously system call services was handled by the interrupt handler
@@ -70,19 +77,22 @@ syscall_handler (struct intr_frame *f UNUSED) {
             exit((int)f->R.rdi);
             break;
         case SYS_READ:
+            check_buffer(f->R.rsi, f->R.rdx, 0);
             f->R.rax = read((int)f->R.rdi, (void *)f->R.rsi, (unsigned)f->R.rdx);
             break;
         case SYS_WRITE:
+            check_buffer(f->R.rsi, f->R.rdx, 1);
             f->R.rax = write((int)f->R.rdi, (const void *)f->R.rsi, (unsigned)f->R.rdx);
             break;
         case SYS_EXEC:
-            check_address((void *)f->R.rdi);
-            f->R.rax = process_exec((void *)f->R.rdi);
+            if (exec (f->R.rdi) == -1)
+                exit (-1);
             break;
         case SYS_WAIT:
             f->R.rax = process_wait((tid_t)f->R.rdi);
             break;
         case SYS_CREATE:
+            check_address((void *)f->R.rdi);  
             f->R.rax = create((const char *)f->R.rdi, (unsigned)f->R.rsi);
             break;
         case SYS_REMOVE:
@@ -105,8 +115,8 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
         case SYS_FORK:
             check_address((void *)f->R.rdi);  // 자식 이름 주소 검증
-            f->R.rax = process_fork((const char *)f->R.rdi, f);  // syscall frame 전달
-            break;    
+            f->R.rax = fork (f->R.rdi, f);
+            break;  
         default:
             exit(-1); // 알 수 없는 시스템콜은 종료
     }
@@ -125,7 +135,7 @@ exit(int status) {
     
     // 🔹 종료 메시지 출력
     printf("%s: exit(%d)\n", cur->name, status);
-
+    
     // 🔹 부모에게 전달할 종료 코드 저장
     cur->exit_status = status;
 
@@ -268,6 +278,27 @@ remove(const char *file) {
     lock_release(&filesys_lock);
 
     return success;
+}
+
+int exec (const char *file){
+	check_address(file);
+
+	int size = strlen(file) + 1; // 파일 사이즈(NULL 포함하기 위해 +1)
+	char *fn_copy = palloc_get_page(PAL_ZERO);
+
+	if (fn_copy == NULL)// 메모리 할당 불가 시
+		exit(-1);
+	strlcpy(fn_copy, file, size);
+
+	if (process_exec(fn_copy) == -1) // [process_exec] 'load (file_name, &_if);' -> load 실패 시
+		return -1;
+	
+	return 0;
+}
+
+pid_t fork (const char *thread_name, struct intr_frame *f) {
+	check_address(thread_name);
+	return process_fork(thread_name, f);
 }
 
 /* 유효 주소 체크 함수*/
