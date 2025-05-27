@@ -68,9 +68,14 @@ sema_down (struct semaphore *sema) {
 	ASSERT (!intr_context ());
 
 	old_level = intr_disable ();
+
+   // 세마포어 자원이 0이면 waiters 리스트에 현재 스레드를 priority 순으로 삽입
 	while (sema->value == 0) {
-		list_insert_ordered (&sema->waiters, &thread_current()->elem, cmp_priority, NULL);
-		thread_block ();
+
+		//list_push_back (&sema->waiters, &thread_current ()->elem);
+		list_insert_ordered(&sema->waiters, &thread_current ()->elem, cmp_priority, NULL);
+		thread_block (); // 현재 스레드를 BLOCKED 상태로 전환
+
 	}
 
 	sema->value--;
@@ -115,7 +120,13 @@ sema_up (struct semaphore *sema) {
 	ASSERT (sema != NULL);
 
 	old_level = intr_disable ();
+
+   //waiters 리스트가 비어있지 않다면
 	if (!list_empty (&sema->waiters)){
+
+
+		//waiters를 priority 높은 순으로 정렬 -> 가장 높은 priority 스레드 unblock(READY)
+
 		list_sort(&sema->waiters, cmp_priority, NULL);
 		unblocked = list_entry(list_pop_front(&sema->waiters), struct thread, elem);
 		thread_unblock(unblocked);
@@ -123,6 +134,10 @@ sema_up (struct semaphore *sema) {
 	sema->value++;
 
 	intr_set_level (old_level);
+
+  
+	//방금 깨어난 스레드가 현재 스레드보다 priority 높으면 양보해야댐
+
 	
 	if ((unblocked != NULL) && (unblocked->priority > thread_current() -> priority))
 		thread_yield();
@@ -388,11 +403,14 @@ cond_wait (struct condition *cond, struct lock *lock) {
 	ASSERT (lock_held_by_current_thread (lock));
 	
 	sema_init (&waiter.semaphore, 0);
+
 	list_push_back(&cond->waiters, &waiter.elem);
 	lock_release (lock);
+
 	sema_down (&waiter.semaphore);
 	lock_acquire (lock);
 }
+
 
 /* If any threads are waiting on COND (protected by LOCK), then
    this function signals one of them to wake up from its wait.
@@ -401,6 +419,7 @@ cond_wait (struct condition *cond, struct lock *lock) {
    An interrupt handler cannot acquire a lock, so it does not
    make sense to try to signal a condition variable within an
    interrupt handler. */
+
 void
 cond_signal (struct condition *cond, struct lock *lock UNUSED) {
 	ASSERT (cond != NULL);
@@ -413,6 +432,7 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED) {
 		sema_up (&list_entry (list_pop_front (&cond->waiters),
 					struct semaphore_elem, elem)->semaphore);
 	}
+
 }
 
 

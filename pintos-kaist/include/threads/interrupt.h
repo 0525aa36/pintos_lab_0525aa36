@@ -5,15 +5,15 @@
 #include <stdint.h>
 
 /* Interrupts on or off? */
-enum intr_level {
+enum intr_level { //인터럽트 비활성화 / 활성화
 	INTR_OFF,             /* Interrupts disabled. */
 	INTR_ON               /* Interrupts enabled. */
 };
 
-enum intr_level intr_get_level (void);
-enum intr_level intr_set_level (enum intr_level);
-enum intr_level intr_enable (void);
-enum intr_level intr_disable (void);
+enum intr_level intr_get_level (void); //현재 인터럽트 상태(inter_level)
+enum intr_level intr_set_level (enum intr_level); // 현재 상태(inter_level)에 따라 인터럽트를 활성화하거나 비활성화
+enum intr_level intr_enable (void); //인터럽트 활성화
+enum intr_level intr_disable (void); //인터럽트 비활성화
 
 /* Interrupt stack frame. */
 struct gp_registers {
