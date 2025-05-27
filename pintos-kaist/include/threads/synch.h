@@ -22,11 +22,14 @@ struct lock { //락
 	struct semaphore semaphore; /* Binary semaphore controlling access. */
 };
 
-void lock_init (struct lock *); //lock 초기화
-void lock_acquire (struct lock *); //lock 획득, lock owner가 lock를 놓아주기를 기다려야 한다면, 기다림
-bool lock_try_acquire (struct lock *); //기다리지 않고 현재 쓰레드가 사용할 락을 얻으려고 함
-void lock_release (struct lock *); //락을 놓아줌(현재 쓰레드가 소유 중이여야 함)
-bool lock_held_by_current_thread (const struct lock *); //running 상태의 쓰레드가 락을 갖고있다면 true, 아니면 false 를 리턴
+
+void lock_init (struct lock *);
+void lock_acquire (struct lock *);
+bool lock_try_acquire (struct lock *);
+void lock_release (struct lock *);
+bool lock_held_by_current_thread (const struct lock *);
+void reset_priority(void);
+
 
 /* Condition variable. */
 struct condition { //컨디션
@@ -38,6 +41,9 @@ void cond_wait (struct condition *, struct lock *); //원자적으로 lock(모�
 void cond_signal (struct condition *, struct lock *); //cond를 기다리는 쓰레드가 있다면(cond는 모니터락으로 보호), 기다리는 쓰레드 중 하나를 깨움
 void cond_broadcast (struct condition *, struct lock *); //cond를 기다리는 쓰레드가 있다면(cond는 모니터락으로 보호), 모든 쓰레드를 깨움
 
+
+bool
+cmp_sema_priority(const struct list_elem *, const struct list_elem *, void *);
 
 /* Optimization barrier.
  *

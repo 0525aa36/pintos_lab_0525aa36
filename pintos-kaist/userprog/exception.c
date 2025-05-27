@@ -5,6 +5,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "intrinsic.h"
+#include "userprog/syscall.h"
 
 // 유저 프로그램이 특별한 접근 권한을 필요로 하거나 금지된 연산을 수행할 때, 이는 exception 또는 fault로 커널 내로 트랩
 // exception.c, exception.h 파일들은 예외사항을 처리
@@ -153,7 +154,7 @@ page_fault (struct intr_frame *f) {
 
 	/* Count page faults. */
 	page_fault_cnt++;
-
+	sys_exit(-1);
 	/* If the fault is true fault, show info and exit. */
 	printf ("Page fault at %p: %s error %s page in %s context.\n",
 			fault_addr,
