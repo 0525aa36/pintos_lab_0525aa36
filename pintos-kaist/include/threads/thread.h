@@ -29,6 +29,9 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
+#define FD_START 2						/*파일 디스크럽터 시작*/
+#define FD_MAX 64						/*파일 디스크럽터 끝 주소*/
+
 /* A kernel thread or user process.
  *
  * Each thread structure is stored in its own 4 kB page.  The
@@ -91,34 +94,31 @@ struct thread {
 	tid_t tid;                          /* Thread identifier. */
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
+	int64_t wakeup_tick;				// 꺠울시간
 	int priority;                       /* Priority. */
-	int64_t wakeup_tick;				/* 스레드를 깨워야하는 시간 */
 
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
-	int original_priority;				/* donation을 모두 제거했을 때 priority를 복원할 기준값 */
-	struct lock *wait_on_lock;			/* wating lock*/
-	struct list donation;				/* donation list */
-	struct list_elem d_elem;			/* donation 리스트에 쓰이는 요소 */
+	int original_priority;				/*original priori*/
+	struct lock *wait_on_lock;			/*wating lock */
+	struct list donations;				/*donation list*/
+	struct list_elem d_elem;     		/*donation elem*/
 
-	#define FDCOUNT_LIMIT 64
+	struct thread *parent;				/*부모 쓰레드*/
+	struct list child_list;				/*자식 리스트*/
+	struct file *fd_table[FD_MAX];         /*fd table*/
+	struct child_info *my_info;
+	struct file *running_file;
+
+	// int child_exit_status;
+
+	// struct semaphore exit_wait;			/*프로세스 대기 세마포어 exec*/
+	// bool is_wait;
 	
+
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
-	uint64_t *pml4;  
-	struct file **fdt;                 /* File Descriptor Table */
-	int fd_idx;
-
-	struct file *running_file;         /* 현재 실행 중인 실행 파일 */
-	int exit_status;                   /* 종료 상태 코드 */
-	struct intr_frame parent_if;
-	struct semaphore wait_sema;  		/* 부모가 나를 기다릴 때 사용하는 세마포어 */
-	struct thread *parent;   // 부모 스레드 포인터
-	struct list children;       /* 자식 리스트 (내가 부모일 때) */
- 	struct list_elem child_elem; /* 내가 자식일 때 리스트에 들어가는 요소 */
-	struct semaphore fork_sema;
-	bool fork_success;
-	bool waited;  // 이 자식이 이미 wait 되었는지 여부
+	uint64_t *pml4;                     /* Page map level 4 */
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
@@ -130,12 +130,14 @@ struct thread {
 	unsigned magic;                     /* Detects stack overflow. */
 };
 
-extern int64_t next_tick_to_awake;
-bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
-bool thread_priority_cmp(const struct list_elem *, const struct list_elem *, void *);
-void remove_with_lock(struct lock *lock);
-void refresh_priority(void);
-bool thread_donation_cmp(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+struct child_info {
+  tid_t tid;
+  int exit_status;
+  bool is_waited;
+  struct semaphore exit_sema;
+  struct list_elem elem;
+};
+
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -154,6 +156,10 @@ tid_t thread_create (const char *name, int priority, thread_func *, void *);
 void thread_block (void);
 void thread_unblock (struct thread *);
 
+bool check_global_tick(int64_t);
+
+void wakeup_thread (int64_t);
+
 struct thread *thread_current (void);
 tid_t thread_tid (void);
 const char *thread_name (void);
@@ -163,6 +169,9 @@ void thread_yield (void);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
+void thread_re_sort (void);
+bool cmp_priority(const struct list_elem *, const struct list_elem *, void *);
+
 
 int thread_get_nice (void);
 void thread_set_nice (int);
@@ -170,12 +179,5 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 void do_iret (struct intr_frame *tf);
-
-void thread_preemption(void);
-
-/* Project 2: User program */
-struct file *running_file;   /* 현재 실행 중인 프로그램 파일 */
-int exit_status;             /* exit(status)에서 사용된 종료 코드 */
-
 
 #endif /* threads/thread.h */

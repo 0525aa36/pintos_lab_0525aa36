@@ -9,7 +9,10 @@
 #include "threads/thread.h"
 
 /* See [8254] for hardware details of the 8254 timer chip. */
-
+// 8524 타이머 칩을 사용해 CPU에 인터럽트를 발생시키고, 그에따라 
+// pintos 커널이 동작함 (마치 진짜 처럼 QEMU가 8524를 흉내냄)
+// TIMER_FREQ 100 일때 안정적 ! 
+//(운영체제는 일반적으로 100 ~ 1000Hz 를 일정한 주기로 봄)
 #if TIMER_FREQ < 19
 #error 8254 timer requires TIMER_FREQ >= 19
 #endif
@@ -18,16 +21,21 @@
 #endif
 
 /* Number of timer ticks since OS booted. */
+// time ticks (os에서 신뢰가능 한 정확한 시간)
 static int64_t ticks;
+
 
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
+// 틱 하나에 cpu가 실행가능 한 반복 루프 횟수
+// timer_calibrate() 함수에서 측정되어 초기화 됨.
 static unsigned loops_per_tick;
 
 static intr_handler_func timer_interrupt;
 static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
+
 
 /* Sets up the 8254 Programmable Interval Timer (PIT) to
    interrupt PIT_FREQ times per second, and registers the
@@ -36,13 +44,16 @@ void
 timer_init (void) {
 	/* 8254 input frequency divided by TIMER_FREQ, rounded to
 	   nearest. */
+	//1193180 (하드웨어 입력 주파수)
 	uint16_t count = (1193180 + TIMER_FREQ / 2) / TIMER_FREQ;
 
 	outb (0x43, 0x34);    /* CW: counter 0, LSB then MSB, mode 2, binary. */
-	outb (0x40, count & 0xff);
-	outb (0x40, count >> 8);
+	outb (0x40, count & 0xff); // 하위 바이트 (LSB)
+	outb (0x40, count >> 8); // 상위 바이트 (MSB)
 
 	intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+	// 타이머 인터럽트 함수가 이 인터럽트가 발생될 때 실행됨
+	// 틱마다 timer_interrupt 함수 호출 !
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -57,7 +68,7 @@ timer_calibrate (void) {
 	   still less than one timer tick. */
 	loops_per_tick = 1u << 10;
 	while (!too_many_loops (loops_per_tick << 1)) {
-		loops_per_tick <<= 1;
+		loops_per_tick <<= 1; 
 		ASSERT (loops_per_tick != 0);
 	}
 
@@ -92,14 +103,11 @@ void
 timer_sleep (int64_t ticks) {
 	int64_t start = timer_ticks ();
 
-	ASSERT (intr_get_level () == INTR_ON); // 인터럽트 켜진 상태에서만 호출 가능
-	// while (timer_elapsed (start) < ticks) //busy-wating 방식 제거
+	ASSERT (intr_get_level () == INTR_ON);
+	// while (timer_elapsed (start) < ticks)
 	// 	thread_yield ();
-	if(timer_elapsed(start) < ticks){ // 현재 시간부터의 경과 시간이 목표 대기 시간(ticks)보다 작으면 (즉, 아직 더 자야 하면)
-		// 스레드를 재운다. 깨어날 시간은 (잠들기 시작한 시간 + 대기할 틱 수)
-		thread_sleep(start + ticks); // 스레드를 sleep(BLOCKED)시킨다
-		// 스레드가 꺠어날 시간 (start + ticks)
-	}
+	if (timer_elapsed(start) < ticks) 
+		 thread_sleep(start + ticks);
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -126,19 +134,16 @@ timer_print_stats (void) {
 	printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
 
-/* Timer interrupt handler. */
-static void
-timer_interrupt (struct intr_frame *args UNUSED) {
-	ticks++; // 전역 틱 카운터 증가
-	thread_tick (); // 스레드 시스템의 틱 처리 함수 호출(선점,통계,업데이트)
-	// 꺠워야 할 스레드 처리
-	thread_awake(ticks);
-	// 현재 틱 값을 인자로 전달하여 sleep_list에 있는 스레드 중 깨울 스레드를 깨움
 
-	if(ticks >= next_tick_to_awake){
-		thread_awake(ticks);
-	}
+/* Timer interrupt handler. */
+static void // timer_interrupt 가 일어났을때 확인할 것 !
+timer_interrupt (struct intr_frame *args UNUSED) {
+	ticks++;
+	thread_tick (); // running 스레드의 cpu 사용량 업데이트
+	if (check_global_tick)
+		wakeup_thread (ticks); // 깨울친구 찾아가기
 }
+
 
 /* Returns true if LOOPS iterations waits for more than one timer
    tick, otherwise false. */
