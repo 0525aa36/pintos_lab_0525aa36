@@ -347,12 +347,14 @@ thread_yield (void) {
 	}
 }
 
+
 static bool // 추가 함수 : 깨어날 순으로 오름차순 정렬 함수
 cmp_wakeup_tick(const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED){ 
 	struct thread *a = list_entry(a_, struct thread, elem);
 	struct thread *b = list_entry(b_, struct thread, elem);
 
 	return a->wakeup_tick < b->wakeup_tick;
+
 }
 
 static void update_next_tick_to_awake() { // 추가 함수 : global_ticks 작은 값으로 초기화
@@ -402,6 +404,7 @@ wakeup_thread (int64_t target_ticks){
 	update_next_tick_to_awake(); 
 }
 
+
 bool
 check_global_tick(int64_t ticks){
 	return ticks >= next_tick_to_awake;
@@ -412,10 +415,13 @@ cmp_priority(const struct list_elem *a_, const struct list_elem *b_, void *aux U
 	struct thread *a = list_entry(a_, struct thread, elem);
 	struct thread *b = list_entry(b_, struct thread, elem);
 
+
 	return a->priority > b->priority;
 }
 
+
 /* Sets the current thread's priority to NEW_PRIORITY. */
+
 void
 thread_set_priority (int new_priority) {
 	struct thread *curr = thread_current();
@@ -432,6 +438,7 @@ void thread_re_sort (){
 			thread_yield();
 	}
 }
+
 
 /* Returns the current thread's priority. */
 int
@@ -695,7 +702,7 @@ schedule (void) {
 		/* If the thread we switched from is dying, destroy its struct
 		   thread. This must happen late so that thread_exit() doesn't
 		   pull out the rug under itself.
-		   We just queuing the page free reqeust here because the page is
+		   We just queuing the page free reqeust here because the page is  
 		   currently used by the stack.
 		   The real destruction logic will be called at the beginning of the
 		   schedule(). */
