@@ -21,6 +21,10 @@ static void rehash (struct hash *);
 
 /* Initializes hash table H to compute hash values using HASH and
    compare hash elements using LESS, given auxiliary data AUX. */
+/* 해시 테이블 H를 초기화한다.  
+   HASH 함수를 사용하여 해시 값을 계산하고,  
+   LESS 함수를 사용하여 해시 요소들을 비교하며,  
+   AUX라는 보조 데이터를 기준으로 한다. */
 bool
 hash_init (struct hash *h,
 		hash_hash_func *hash, hash_less_func *less, void *aux) {
@@ -88,6 +92,10 @@ hash_destroy (struct hash *h, hash_action_func *destructor) {
    no equal element is already in the table.
    If an equal element is already in the table, returns it
    without inserting NEW. */
+/* NEW 요소를 해시 테이블 H에 삽입합니다.
+   만약 동일한 요소가 테이블에 아직 없다면, NEW를 삽입하고 null 포인터를 반환합니다.
+   만약 동일한 요소가 이미 테이블에 있다면, NEW를 삽입하지 않고
+   기존의 요소 포인터를 반환합니다. */
 struct hash_elem *
 hash_insert (struct hash *h, struct hash_elem *new) {
 	struct list *bucket = find_bucket (h, new);

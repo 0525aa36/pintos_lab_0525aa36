@@ -35,7 +35,7 @@
 #define KERN_BASE LOADER_KERN_BASE // user virtual memory and kernel virtual memory : 둘 사이의 경계
 
 /* User stack start */
-#define USER_STACK 0x47480000 
+#define USER_STACK 0x47480000
 
 /* Returns true if VADDR is a user virtual address. */
 #define is_user_vaddr(vaddr) (!is_kernel_vaddr((vaddr)))

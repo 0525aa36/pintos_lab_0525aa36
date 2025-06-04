@@ -11,6 +11,12 @@
         "thread.h": "c",
         "process.h": "c",
         "file.h": "c",
-        "filesys.h": "c"
+        "filesys.h": "c",
+        "malloc.h": "c",
+        "array": "c",
+        "deque": "c",
+        "string": "c",
+        "vector": "c",
+        "memory_resource": "c"
     }
 }

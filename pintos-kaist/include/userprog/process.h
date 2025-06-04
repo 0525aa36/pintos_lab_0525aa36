@@ -10,4 +10,16 @@ int process_wait (tid_t);
 void process_exit (void);
 void process_activate (struct thread *next);
 
+
+struct aux_data
+{
+    struct file *file;
+    void *va;
+    bool writable;
+    uint32_t page_read_bytes;
+    uint32_t page_zero_bytes;
+    off_t ofs;
+};
+
+
 #endif /* userprog/process.h */

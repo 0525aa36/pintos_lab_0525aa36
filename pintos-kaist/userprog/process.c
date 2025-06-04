@@ -776,13 +776,31 @@ install_page (void *upage, void *kpage, bool writable) {
 /* From here, codes will be used after project 3.
  * If you want to implement the function for only project 2, implement it on the
  * upper block. */
+/* 여기서부터의 코드는 프로젝트 3 이후에 사용됩니다.
+ * 만약 프로젝트 2까지만 구현하려면, 위쪽 블록에서 구현하세요. */
 
 static bool
-lazy_load_segment (struct page *page, void *aux) {
+lazy_load_segment (struct page *page, struct aux_data *aux) {
 	/* TODO: Load the segment from the file */
 	/* TODO: This called when the first page fault occurs on address VA. */
 	/* TODO: VA is available when calling this function. */
+	/* TODO: 파일에서 세그먼트를 불러오세요. */
+	/* TODO: 이 함수는 주소 VA에서 첫 번째 페이지 폴트가 발생했을 때 호출됩니다. */
+	/* TODO: 이 함수를 호출할 때 VA는 사용 가능합니다. */
+	struct file *file = aux->file;
+	uint32_t page_read_bytes = aux->page_read_bytes;
+	uint32_t page_zero_bytes = aux->page_zero_bytes;
+	off_t ofs = aux->ofs;
+
+	file_seek(file, ofs);
+
+	if(file_read(file, page->va, page_read_bytes) != (int)page_read_bytes){
+		return false;
+	}
+	memset(page->va + page_read_bytes, 0, page_zero_bytes);
+	return true;
 }
+
 
 /* Loads a segment starting at offset OFS in FILE at address
  * UPAGE.  In total, READ_BYTES + ZERO_BYTES bytes of virtual
@@ -798,6 +816,19 @@ lazy_load_segment (struct page *page, void *aux) {
  *
  * Return true if successful, false if a memory allocation error
  * or disk read error occurs. */
+/* FILE의 OFS 오프셋에서 시작하는 세그먼트를 UPAGE 주소에 적재합니다.
+ * 총 READ_BYTES + ZERO_BYTES 만큼의 가상 메모리가 다음과 같이 초기화됩니다:
+ *
+ * - READ_BYTES 만큼은 FILE에서 읽어서 UPAGE에 저장됩니다
+ *   (파일의 OFS 오프셋에서 읽기 시작).
+ *
+ * - UPAGE + READ_BYTES 주소부터 ZERO_BYTES 만큼 0으로 초기화됩니다.
+ *
+ * 만약 WRITABLE이 true이면, 이 함수가 초기화한 페이지들은 사용자 프로세스에서 쓰기가 가능합니다.
+ * 그렇지 않으면 읽기 전용입니다.
+ *
+ * 성공하면 true를 반환하고, 메모리 할당 오류 또는 디스크 읽기 오류가 발생하면 false를 반환합니다. */
+
 static bool
 load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		uint32_t read_bytes, uint32_t zero_bytes, bool writable) {
@@ -809,24 +840,42 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		/* Do calculate how to fill this page.
 		 * We will read PAGE_READ_BYTES bytes from FILE
 		 * and zero the final PAGE_ZERO_BYTES bytes. */
+		/* 이 페이지를 어떻게 채울지 계산합니다.
+		 * FILE에서 PAGE_READ_BYTES 만큼 읽고,
+		 * 나머지 PAGE_ZERO_BYTES 만큼은 0으로 채울 예정입니다. */
 		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
 		size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
-		void *aux = NULL;
-		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
+		/* TODO: lazy_load_segment 함수에 정보를 전달할 aux를 설정하세요. */
+		struct aux_data *aux;
+		aux = (struct aux_data *)calloc(1, sizeof(struct aux_data));
+
+		aux->file = file;
+		aux->va = upage;
+		aux->writable = writable;
+        aux->page_read_bytes = page_read_bytes;
+        aux->page_zero_bytes = page_zero_bytes;
+        aux->ofs = ofs;
+
+		// void *aux = NULL;
+		if (!vm_alloc_page_with_initializer (VM_FILE, upage,
 					writable, lazy_load_segment, aux))
 			return false;
 
 		/* Advance. */
+		/* 다음 페이지로 이동합니다. */
 		read_bytes -= page_read_bytes;
 		zero_bytes -= page_zero_bytes;
 		upage += PGSIZE;
+		ofs += page_read_bytes;
 	}
 	return true;
 }
 
 /* Create a PAGE of stack at the USER_STACK. Return true on success. */
+/* USER_STACK 위치에 스택을 위한 PAGE를 생성합니다.
+ * 성공 시 true를 반환합니다. */
 static bool
 setup_stack (struct intr_frame *if_) {
 	bool success = false;
@@ -836,6 +885,17 @@ setup_stack (struct intr_frame *if_) {
 	 * TODO: If success, set the rsp accordingly.
 	 * TODO: You should mark the page is stack. */
 	/* TODO: Your code goes here */
+	/* TODO: stack_bottom에 스택을 매핑하고 즉시 페이지를 확보하세요.
+	 * TODO: 성공했다면, rsp 값을 적절히 설정하세요.
+	 * TODO: 해당 페이지를 스택으로 표시해야 합니다. */
+	/* TODO: 여기에 코드를 작성하세요. */
+
+	if(vm_alloc_page(VM_ANON | VM_MARKER_0, stack_bottom, 1)){
+		success = vm_claim_page(stack_bottom);
+		if(success){
+			if_->rsp = USER_STACK;
+		}
+	}
 
 	return success;
 }
