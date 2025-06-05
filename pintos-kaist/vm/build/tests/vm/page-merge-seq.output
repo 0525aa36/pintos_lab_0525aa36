@@ -17,16 +17,18 @@ Executing 'page-merge-seq':
 (page-merge-seq) begin
 (page-merge-seq) init
 (page-merge-seq) sort chunk 0
+(page-merge-seq) child[0] exec
+child-sort: exit(-1)
 (page-merge-seq) child[0] wait fail: FAILED
 page-merge-seq: exit(1)
 Execution of 'page-merge-seq' complete.
-Timer: 98 ticks
-Thread: 40 idle ticks, 41 kernel ticks, 17 user ticks
+Timer: 108 ticks
+Thread: 37 idle ticks, 47 kernel ticks, 25 user ticks
 hd0:0: 0 reads, 0 writes
-hd0:1: 139 reads, 734 writes
+hd0:1: 175 reads, 734 writes
 hd1:0: 216 reads, 0 writes
 hd1:1: 0 reads, 0 writes
-Console: 1125 characters output
+Console: 1178 characters output
 Keyboard: 0 keys pressed
 Exception: 0 page faults
 Powering off...

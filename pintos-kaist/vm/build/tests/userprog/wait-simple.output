@@ -15,17 +15,19 @@ Putting 'wait-simple' into the file system...
 Putting 'child-simple' into the file system...
 Executing 'wait-simple':
 (wait-simple) begin
-(wait-simple) wait(exec()) = -1
+(child-simple) run
+child-simple: exit(81)
+(wait-simple) wait(exec()) = 81
 (wait-simple) end
 wait-simple: exit(0)
 Execution of 'wait-simple' complete.
 Timer: 79 ticks
-Thread: 37 idle ticks, 41 kernel ticks, 1 user ticks
+Thread: 39 idle ticks, 40 kernel ticks, 1 user ticks
 hd0:0: 0 reads, 0 writes
-hd0:1: 107 reads, 446 writes
+hd0:1: 159 reads, 446 writes
 hd1:0: 204 reads, 0 writes
 hd1:1: 0 reads, 0 writes
-Console: 1061 characters output
+Console: 1103 characters output
 Keyboard: 0 keys pressed
 Exception: 0 page faults
 Powering off...

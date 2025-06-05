@@ -15,16 +15,21 @@ Putting 'mmap-exit' into the file system...
 Putting 'child-mm-wrt' into the file system...
 Executing 'mmap-exit':
 (mmap-exit) begin
+(child-mm-wrt) begin
+(child-mm-wrt) create "sample.txt"
+(child-mm-wrt) open "sample.txt"
+(child-mm-wrt) mmap "sample.txt"
+child-mm-wrt: exit(-1)
 (mmap-exit) wait for child (should return 0): FAILED
 mmap-exit: exit(1)
 Execution of 'mmap-exit' complete.
-Timer: 77 ticks
-Thread: 39 idle ticks, 37 kernel ticks, 2 user ticks
+Timer: 81 ticks
+Thread: 37 idle ticks, 38 kernel ticks, 6 user ticks
 hd0:0: 0 reads, 0 writes
-hd0:1: 107 reads, 458 writes
+hd0:1: 183 reads, 472 writes
 hd1:0: 210 reads, 0 writes
 hd1:1: 0 reads, 0 writes
-Console: 1050 characters output
+Console: 1195 characters output
 Keyboard: 0 keys pressed
 Exception: 0 page faults
 Powering off...

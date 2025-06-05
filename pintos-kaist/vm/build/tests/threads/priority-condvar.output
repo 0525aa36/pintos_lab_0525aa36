@@ -44,8 +44,8 @@ Executing 'priority-condvar':
 (priority-condvar) Thread priority 21 woke up.
 (priority-condvar) end
 Execution of 'priority-condvar' complete.
-Timer: 80 ticks
-Thread: 30 idle ticks, 50 kernel ticks, 0 user ticks
+Timer: 71 ticks
+Thread: 30 idle ticks, 42 kernel ticks, 0 user ticks
 hd0:0: 0 reads, 0 writes
 hd0:1: 9 reads, 18 writes
 hd1:1: 0 reads, 0 writes
