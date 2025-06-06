@@ -24,8 +24,15 @@ bool
 file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 	/* Set up the handler */
 	page->operations = &file_ops;
-
 	struct file_page *file_page = &page->file;
+
+	/* Store uninit page elements for page copy. */
+	file_page->init = page->uninit.init;
+	file_page->type = page->uninit.type;
+	file_page->aux = page->uninit.aux;
+	file_page->page_initializer = page->uninit.page_initializer;
+
+    return true;
 }
 
 /* Swap in the page by read contents from the file. */

@@ -1,0 +1,35 @@
+[33mc32b3d4[m[33m ([m[1;36mHEAD -> [m[1;32m0525aa36[m[33m, [m[1;31morigin/0525aa36[m[33m)[m Project 39 of 141 tests failed.
+[33m75e5524[m Project 57 of 141 tests failed.
+[33mdac6082[m SPT 구현, 프레임 할당, 페이지 클레임 및 VA→PA 매핑, 해시 함수
+[33m4c321aa[m Merge branch '0525aa36' of https://github.com/0525aa36/pintos_lab_0525aa36 into 0525aa36
+[33m7b1da56[m SPT 구현, 프레임 할당, 페이지 클레임 및 VA→PA 매핑, 해시 함수
+[33m87f9e58[m Merge branch 'main' into 0525aa36
+[33m6f6f887[m All 95 tests passed.
+[33m8497178[m userprog/exec-missing 32
+[33me4ba8df[m userprog/exec-missing pass 32
+[33m1e61fb5[m fork 진행 중 / 33 of 95 tests failed
+[33mc4721cf[m fork 진행 중 /33 of 95 tests failed
+[33m5da4716[m syscall (open,close,write,create)
+[33mf28b81e[m syscall
+[33mdf28092[m syscall (open, close, write, create)
+[33mf94f733[m today pintos
+[33m89ae981[m Merge pull request #9 from 0525aa36/0525aa36
+[33m185968e[m Merge branch 'main' into 0525aa36
+[33m83afe08[m 문자열 파싱 후 스택 적재, halt, exit, write syscall 구현
+[33mcc78813[m 문자열 파싱 후 스택 적재, write syscall 구현
+[33m2985f14[m Merge pull request #7 from 0525aa36/0525aa36
+[33m91955cc[m start project 2
+[33md75cf90[m Merge pull request #6 from 0525aa36/0525aa36
+[33m21bb355[m commit project 1
+[33m5881616[m Merge pull request #5 from 0525aa36/0525aa36
+[33m4428d2a[m alarm, priority, priority-donate pss
+[33m3c92831[m Merge pull request #4 from 0525aa36/0525aa36
+[33m828fb60[m priority donation field Initialize
+[33mcf94d15[m Merge pull request #3 from 0525aa36/0525aa36
+[33mf20b544[m priority-cond test pass
+[33mab83b78[m Merge pull request #2 from 0525aa36/0525aa36
+[33me2a8670[m priority-cond test pass
+[33m34fd416[m sema pass
+[33m791faba[m Merge pull request #1 Priority-aware Synchronization
+[33mdfec462[m Priority-aware Synchronization sema_down(), sema_up(), cond_wait(), cond_signal() ---> test : sema, condvar -> fail
+[33maee8fe9[m[33m ([m[1;32mmain[m[33m)[m first commit

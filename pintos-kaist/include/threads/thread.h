@@ -114,7 +114,7 @@ struct thread {
 
 	// struct semaphore exit_wait;			/*프로세스 대기 세마포어 exec*/
 	// bool is_wait;
-	
+	uint64_t rsp;
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */

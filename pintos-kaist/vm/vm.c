@@ -200,28 +200,34 @@ vm_handle_wp (struct page *page UNUSED) {
 }
 
 /* Return true on success */
-bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
-                         bool user UNUSED, bool write UNUSED, bool not_present UNUSED)
-{
-    struct supplemental_page_table *spt UNUSED = &thread_current()->spt;
-    struct page *page = NULL;
-    if (addr == NULL)
-        return false;
+bool
+vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
+		bool user UNUSED, bool write UNUSED, bool not_present UNUSED) {
+	struct supplemental_page_table *spt UNUSED = &thread_current ()->spt;
+	void *page_addr = pg_round_down(addr); // 페이지 사이즈로 내려서 spt_find 해야 하기 때문 
+	uint64_t MAX_STACK = USER_STACK - (1<<20);
+	uint64_t addr_v = (uint64_t)addr;
+	uint64_t rsp = user ? f->rsp : thread_current()->rsp; 
 
-    if (is_kernel_vaddr(addr))
-        return false;
+	if (is_kernel_vaddr(addr)) 
+		return false;
+	/* physical page는 존재하나, writable하지 않은 address에 write를 시도해서 일어난 fault인 경우, 
+       할당하지 않고 즉시 false를 반환한다. */
+	if ((!not_present) && write){
+    	return false;}
 
-    if (not_present) // 접근한 메모리의 physical page가 존재하지 않은 경우
-    {
-        /* TODO: Validate the fault */
-        page = spt_find_page(spt, addr);
-        if (page == NULL)
-            return false;
-        if (write == 1 && page->writable == 0) // write 불가능한 페이지에 write 요청한 경우
-            return false;
-        return vm_do_claim_page(page);
-    }
-    return false;
+	/* TODO: Validate the fault */
+	struct page *page = spt_find_page(spt, page_addr);
+	if (page == NULL) {
+		if (addr_v > MAX_STACK && addr_v < USER_STACK && addr_v >= rsp -8) {
+			vm_stack_growth(page_addr);
+			page = spt_find_page(spt, page_addr);
+		}
+		else { 
+			return false ; 
+		}
+	}
+return vm_do_claim_page (page);
 }
 
 /* Free the page.
@@ -315,6 +321,12 @@ void hash_page_destroy(struct hash_elem *e, void *aux)
     destroy(page);
     free(page);
 }
+
+void clear_func (struct hash_elem *elem, void *aux) {
+	struct page *page = hash_entry(elem, struct page, hash_elem);
+	vm_dealloc_page(page);
+}
+
 /* Free the resource hold by the supplemental page table */
 void supplemental_page_table_kill(struct supplemental_page_table *spt UNUSED)
 {

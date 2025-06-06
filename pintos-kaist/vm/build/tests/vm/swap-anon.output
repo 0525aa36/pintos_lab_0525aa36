@@ -18,12 +18,12 @@ Executing 'swap-anon':
 (swap-anon) write sparsely over page 512
 (swap-anon) write sparsely over page 1024
 Kernel PANIC at ../../vm/vm.c:183 in vm_get_frame(): todo
-Call stack: 0x8004217f4b 0x8004221035 0x80042211f7 0x800422112f 0x800421cdbd 0x8004208df5 0x8004209213 0x400cac 0x400cf5.
+Call stack: 0x8004217f4b 0x8004221035 0x8004221270 0x80042211af 0x800421cdbd 0x8004208df5 0x8004209213 0x400cac 0x400cf5.
 The `backtrace' program can make call stacks useful.
 Read "Backtraces" in the "Debugging Tools" chapter
 of the Pintos documentation for more information.
-Timer: 95 ticks
-Thread: 35 idle ticks, 34 kernel ticks, 26 user ticks
+Timer: 96 ticks
+Thread: 35 idle ticks, 34 kernel ticks, 27 user ticks
 hd0:0: 0 reads, 0 writes
 hd0:1: 80 reads, 236 writes
 hd1:0: 104 reads, 0 writes
